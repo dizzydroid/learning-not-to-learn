@@ -1,0 +1,31 @@
+# Deep learning framework
+torch>=2.0
+torchvision>=0.15
+
+# Data manipulation
+numpy>=1.23
+pandas>=1.5
+
+# Visualization
+matplotlib>=3.6
+seaborn>=0.12
+
+# Progress bar, logging, experiment tracking
+tqdm>=4.65
+tensorboard>=2.12
+
+# Experiment configs
+pyyaml>=6.0
+
+# Jupyter (optional)
+jupyterlab>=4.0
+
+# Image processing
+Pillow>=10.0
+
+# Testing (optional, for /tests)
+pytest>=7.0
+
+# Code style (optional)
+black>=24.1
+flake8>=7.0

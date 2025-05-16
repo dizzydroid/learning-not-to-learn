@@ -1,0 +1,7 @@
+# Example config for colored MNIST experiment
+batch_size: 128
+epochs: 50
+lr: 0.001
+lambda: 1.0   # Mutual info regularization
+mu: 0.1       # KL term
+seed: 42
