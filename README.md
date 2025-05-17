@@ -1,242 +1,201 @@
-# Learning Not to Learn: Training Deep Neural Networks with Biased Data
+# Learning Not To Learn: A User-Friendly Implementation
 
-This repository provides a PyTorch implementation of the paper:
-**"Learning Not to Learn: Training Deep Neural Networks with Biased Data"**
-by Byungju Kim, Hyunwoo Kim, Sungjin Kim, Junmo Kim, and Kyungsu Kim.
+This repository provides a user-friendly PyTorch implementation of the paper "[Learning Not to Learn: Training Deep Neural Networks with Biased Data](https://arxiv.org/abs/1812.10352)" by Kim et al. (CVPR 2019). The goal of this project is to replicate the paper's adversarial approach to mitigate dataset bias in a way that is more accessible, configurable, and easier to understand and extend.
 
-**Paper:** [arXiv:1812.10352](https://arxiv.org/abs/1812.10352)
-(CVPR 2019)
+The core idea is to train a feature extractor that "unlearns" bias information by making it difficult for a separate bias prediction network to identify the bias from the extracted features, while still allowing a main task classifier to perform well.
 
-## Overview
+## Features
 
-Deep neural networks are powerful learners that can inadvertently pick up and rely on spurious correlations or biases present in training data. When these biases are not representative of the true underlying task, the model's performance can degrade significantly on unbiased test sets.
+* **Modular Codebase:** Clear separation of concerns for data loading, model definitions, training logic, and utilities.
+* **Configuration-Driven:** Experiments are managed via YAML configuration files, making it easy to define and track different setups.
+* **Automated Workflow:** A `Makefile` is provided for common tasks like setup, training, evaluation, and cleaning.
+* **User-Friendly Setup:** Includes scripts for dataset download and clear instructions.
+* **Phased Training:** Supports optional pre-training phases for components.
+* **Comprehensive Logging:** Console logging and TensorBoard integration for tracking metrics.
+* **Robust Checkpointing:** Saves and loads model checkpoints, including optimizer states, for resuming training and evaluation. Includes "best model" saving.
+* **Gradient Reversal Layer (GRL):** Implements GRL for the adversarial training component.
+* **Jupyter Notebooks:** For data exploration, model sanity checks, and (template for) results analysis.
 
-This paper introduces an adversarial regularization algorithm designed to train deep neural networks that are robust to such dataset biases. The core idea is to make the learned feature representations informative for the main task while being uninformative about the known bias. This is achieved by:
-
-1.  A **Feature Extractor network ($f$)**: Learns feature embeddings from input data.
-2.  A **Label Predictor network ($g$)**: Predicts the target labels from the features.
-3.  A **Bias Predictor network ($h$)**: Adversarially trained to predict the bias from the features.
-
-The feature extractor ($f$) is trained to support the label predictor ($g$) while simultaneously "fooling" the bias predictor ($h$), often using a Gradient Reversal Layer (GRL). The overall objective aims to minimize the mutual information between the learned features and the bias variables, forcing the network to "unlearn" the bias.
-
-This implementation focuses on reproducing the experiments from the paper using datasets like Colored MNIST, Dogs and Cats (with color bias), and IMDB-Face (with age/gender bias).
-
-## Repository Structure
+## Project Structure
 
 ```
 
-.
-├── Makefile                # For managing tasks like setup, training, cleaning
-├── README.md               # This file
-├── requirements.txt        # Python dependencies
-├── fetch_data.py           # Script to download datasets and setup directories
-├── main.py                 # Main script to run experiments (parses args, inits components)
-├── solver.py               # Contains the Solver class with training and evaluation logic
-├── network.py              # Defines network architectures (f, g, h, GRL)
-├── data_handler.py         # Dataset classes and data loader functions
-├── utils.py                # Utility functions (e.g., accuracy, seeding)
+learning-not-to-learn/
+├── .gitignore               # Git ignore file
+├── Makefile                 # Automation for common tasks
+├── README.md                # This file
+├── requirements.txt         # Python package dependencies
+├── environment.yml          # Optional: For Conda environments
 │
-├── data/                   # Root directory for datasets (created by fetch_data.py)
-│   ├── mnist_colored_data/ # For Colored MNIST
-│   ├── dogs_vs_cats/       # For Dogs and Cats dataset
-│   │   ├── images/         # Raw cat/dog images
-│   │   ├── lists/          # list_bright.txt, list_dark.txt, list_test_unbiased.txt
-│   │   └── raw_kaggle_downloads/ # Downloaded zips from Kaggle
-│   └── imdb_face/          # For IMDB-Face dataset
-│       ├── filtered_images/ # Authors' pre-filtered images (from GDrive)
-│       ├── manifests/      # CSV manifest files for train/test splits
-│       └── (imdb_face_filtered.zip) # Archive from GDrive
+├── configs/                 # Configuration files for experiments
+│   └── colored_mnist_default.yaml # Example config
 │
-├── scripts/                # Shell scripts to run specific experiments
-│   ├── run_cmnist.sh
-│   ├── run_dogs_cats_tb1.sh
-│   └── run_imdb_eb1_gender.sh
+├── data/                    # Default location for datasets
+│   └── colored_mnist/       # Data for Colored MNIST (after download script)
+│   └── README.md            # Brief note about dataset storage
 │
-└── outputs/                # Directory for saving logs, checkpoints, and results
-├── checkpoints/
-├── logs/           # TensorBoard logs
-└── (test_results.npy) # Saved predictions on test set
+├── notebooks/               # Jupyter notebooks
+│   ├── 01_data_exploration_and_visualization.ipynb
+│   ├── 02_model_sanity_checks.ipynb
+│   └── 03_results_analysis.ipynb (template)
+│
+├── results/                 # Output directory (logs, checkpoints, plots) - in .gitignore
+│
+├── scripts/                 # Utility scripts
+│   └── download_dataset.sh  # Script to download and extract Colored MNIST
+│
+└── src/                     # Main source code
+├── __init__.py
+├── data_loader.py       # Dataset and DataLoader classes
+├── main.py              # Main script for training and evaluation
+├── models.py            # Neural network architecture definitions (f, g, h, GRL)
+├── trainer.py           # Trainer class with training/evaluation logic
+└── utils.py             # Utility functions (config loading, seeding, logging)
 
 ````
 
-## Setup Instructions
+## Getting Started
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/dizzydroid/learning-not-to-learn
 cd learning-not-to-learn
 ````
 
-### 2. Install Dependencies
+### 2\. Create a Virtual Environment (Recommended)
 
-It's highly recommended to use a Python virtual environment (e.g., Conda or venv).
+**Using `venv`:**
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+**Using Conda:**
+
+```bash
+conda create -n lntl_env python=3.9  # Or your preferred Python version
+conda activate lntl_env
+```
+
+### 3\. Setup Project using Makefile
+
+The easiest way to install dependencies and download the dataset is by using the `Makefile`:
 
 ```bash
 make setup
-# This will execute: pip install -r requirements.txt
 ```
 
-The `requirements.txt` file should include `torch`, `torchvision`, `numpy`, `Pillow`, `pyyaml`, `tqdm`, `kaggle`, `gdown`, `requests`, `tensorboard`, etc.
+This command will:
 
-### 3. Set Up Kaggle API (for Dogs vs. Cats raw data)
+1.  Install Python dependencies from `requirements.txt` (including `gdown` for dataset download).
+2.  Download and extract the Colored MNIST dataset to `./data/colored_mnist/` using `scripts/download_dataset.sh`.
 
-If you want the script to attempt downloading the Dogs vs. Cats dataset from Kaggle:
+Alternatively, you can run these steps manually:
 
-  * Ensure the Kaggle API is installed (covered by `make setup` if `kaggle` is in `requirements.txt`).
-  * Download your `kaggle.json` API token from your Kaggle account page (My Account > API > Create New API Token).
-  * Place it in `~/.kaggle/kaggle.json`.
-  * Set appropriate permissions: `chmod 600 ~/.kaggle/kaggle.json` (on Linux/macOS).
+  * Install dependencies: `make install` or `pip install -r requirements.txt && pip install gdown`
+  * Download data: `make download_data` or `bash scripts/download_dataset.sh`
 
-### 4. Fetch and Prepare Datasets
+## Configuration
 
-Run the data fetching script. This script will:
+Experiments are controlled by YAML configuration files located in the `configs/` directory. `configs/colored_mnist_default.yaml` is provided as a template. Modify this file or create new ones to define your experimental setup (dataset paths, model parameters, training hyperparameters, etc.).
 
-  * Download MNIST automatically via torchvision.
-  * Attempt to download Dogs vs. Cats raw data from Kaggle using the API (and a fallback public dataset).
-  * Attempt to download the authors' pre-filtered IMDB-Face data from the provided Google Drive link using `gdown`.
-  * Create the necessary directory structures within `./data/`.
-
-<!-- end list -->
+You can list available configurations using:
 
 ```bash
-make fetch_data
-# This executes: python fetch_data.py
+make list_configs
 ```
 
-**Crucial Manual Steps after `make fetch_data`:**
+## Running Experiments with Makefile
 
-  * **Dogs vs. Cats:**
-      * Verify that images are populated in `data/dogs_vs_cats/images/`.
-      * **Manually categorize** these images by color ("bright", "dark") as per the paper's description.
-      * Create `list_bright.txt`, `list_dark.txt` (containing filenames of bright and dark images, respectively) and your test image list (e.g., `list_test_unbiased.txt`) in the `data/dogs_vs_cats/lists/` directory. The `fetch_data.py` script prints detailed instructions and creates example list files.
-  * **IMDB-Face:**
-      * Verify that the filtered images (downloaded from Google Drive) are correctly extracted into `data/imdb_face/filtered_images/`.
-      * **Create manifest CSV files** (e.g., `train_eb1_gender.csv`, `test_unbiased_gender.csv`) in the `data/imdb_face/manifests/` directory. These CSVs should list image filenames (relative to the `filtered_images/` directory), their true gender labels, and true age values. This allows `data_handler.py` to construct the biased training sets (EB1, EB2) and the test set according to the paper's methodology. `fetch_data.py` provides example manifest structures.
+The `Makefile` provides convenient shortcuts for common operations. Run `make help` to see all available targets.
 
-## Running Experiments
+### Training
 
-Experiments are configured and run using shell scripts located in the `scripts/` directory. These scripts invoke `main.py` with specific command-line arguments. The `Makefile` provides convenient shortcuts.
-
-### Using Makefile
-
-Ensure you are in the project root directory.
-
-```bash
-# Run the Colored MNIST experiment
-make run_cmnist
-
-# Run the Dogs and Cats TB1 bias experiment
-# (Ensure scripts/run_dogs_cats_tb1.sh is configured and list files are ready)
-make run_dogs_cats_tb1
-
-# Run the IMDB Face EB1 (Gender task) experiment
-# (Ensure scripts/run_imdb_eb1_gender.sh is configured and manifest files are ready)
-make run_imdb_eb1_gen
-```
-
-You can add more targets to the `Makefile` for other scripts you create in the `scripts/` directory.
-
-### Using Shell Scripts Directly
-
-```bash
-bash scripts/run_cmnist.sh
-# or
-bash scripts/run_dogs_cats_tb1.sh
-```
-
-Modify parameters directly within the `.sh` files for different experimental setups.
-
-### Using `main.py` Directly
-
-For custom runs or debugging:
-
-```bash
-python main.py 
-    --dataset_name ColoredMNIST 
-    --data_root_base ./data 
-    --num_main_classes 10 
-    --num_bias_classes 10 
-    --f_network_name SimpleCNN 
-    --g_network_name SimpleCNN 
-    --h_network_name SimpleCNN_ConvBias 
-    --experiment_name custom_cmnist_run 
-    --epochs 10 
-    # ... add other necessary arguments ...
-```
-
-Run `python main.py --help` to see all available command-line options.
-
-## Monitoring Training and Results
-
-### TensorBoard
-
-Training progress (losses, accuracies for main task and bias predictor, GRL alpha schedule) is logged to TensorBoard.
-To launch TensorBoard:
-
-```bash
-tensorboard --logdir ./outputs
-```
-
-Then open your browser to `http://localhost:6006` (or the URL TensorBoard provides). Logs for each experiment are stored in `outputs/[experiment_name]/logs/`.
-
-### Model Checkpoints
-
-Trained model checkpoints (`.pth` files containing model weights and optimizer states) are saved periodically in `outputs/[experiment_name]/checkpoints/`. These can be used to resume training or for later evaluation.
-
-### Test Set Evaluation & Output
-
-To evaluate a trained model on the test set and save its predictions:
-
-1.  Identify the path to your trained model checkpoint (e.g., `outputs/your_experiment_name/checkpoints/model_epoch_X.pth`).
-2.  Use `main.py` with `mode="test"` and provide the checkpoint path.
-    Example (modify your script or run directly):
+  * **Run a full training session** (uses `DEFAULT_TRAIN_EPOCHS` from Makefile, e.g., 50 epochs, and `configs/colored_mnist_default.yaml`):
     ```bash
-    python main.py 
-        --mode "test" 
-        --load_checkpoint_path "outputs/cmnist_debias_sigma0.05_mu1.0_lambda0.5/checkpoints/model_epoch_50.pth" 
-        --test_output_npy "cmnist_results_epoch50.npy" 
-        --dataset_name "ColoredMNIST" 
-        --data_root_base "./data" 
-        --num_main_classes 10 
-        --num_bias_classes 10 
-        --f_network_name "SimpleCNN" 
-        --g_network_name "SimpleCNN" 
-        --h_network_name "SimpleCNN_ConvBias" 
-        # ... ensure other dataset/model args match the training config of the loaded checkpoint ...
+    make train
     ```
-    This command loads the model, runs inference on the test set (as defined by `get_data_loader(args, train=False, ...)`), and saves a dictionary containing true labels, predicted labels/probabilities, and bias-related information into an `.npy` file located in `outputs/[experiment_name]/`.
+  * **Run a quick 1-epoch test training:**
+    ```bash
+    make quick_train
+    ```
+  * **Customize training:**
+    ```bash
+    make train EPOCHS=100 CONFIG=configs/your_custom_config.yaml DEVICE=cuda:0
+    ```
 
-### Analyzing Results
+Outputs (logs, TensorBoard files, checkpoints) will be saved to the directory specified in the `logging.output_dir` and `project.experiment_name` fields of your config (e.g., `results/colored_mnist_baseline/`).
 
-You can create Jupyter notebooks (e.g., in a `notebooks/` directory that you can create) to:
+### Resuming Training
 
-  * Load the saved `test_results.npy` files.
-  * Calculate detailed fairness metrics.
-  * Plot confusion matrices for both main task and bias prediction.
-  * Visualize qualitative results (e.g., show images where the model overcame bias).
+To resume training from a checkpoint, you'll need to use the `python src/main.py` command directly, specifying the checkpoint path:
 
-## Expected Results
+```bash
+python src/main.py --config configs/your_config.yaml --mode train --checkpoint_path path/to/your/checkpoint.pth
+```
 
-The primary goal is to achieve high accuracy on the main classification task while the bias predictor ($h$) performs poorly on the (unbiased) test set's bias attributes. This indicates that the feature extractor ($f$) has learned representations that are largely invariant to the dataset bias. Refer to Figures 4, 5, 6, 7 and Tables 1, 2 in the original paper for quantitative benchmarks on specific datasets.
+### Evaluation
+
+  * **Evaluate the best model** from the default experiment run:
+    ```bash
+    make eval
+    ```
+  * **Evaluate a specific checkpoint:**
+    ```bash
+    make eval CHECKPOINT=./results/colored_mnist_baseline/checkpoints/checkpoint_epoch_XX.pth
+    ```
+
+### Monitoring with TensorBoard
+
+  * Launch TensorBoard for the default experiment:
+    ```bash
+    make tensorboard
+    ```
+    Then open `http://localhost:6006` in your browser.
+
+## Jupyter Notebooks
+
+The `notebooks/` directory contains:
+
+  * **`01_data_exploration_and_visualization.ipynb`**: Load and visualize the Colored MNIST dataset to understand its properties and biases.
+  * **`02_model_sanity_checks.ipynb`**: Instantiate and test individual model components ($f, g, h$) with dummy data to verify shapes and forward passes.
+  * **`03_results_analysis.ipynb`**: A template for loading metrics from TensorBoard, plotting learning curves, and performing other analyses on completed training runs.
+
+Start Jupyter Lab/Notebook using:
+
+```bash
+make notebook
+```
+
+## Core Logic ("Learning Not To Learn")
+
+1.  **Feature Extractor ($f$)**: A network (e.g., CNN) that learns a representation of the input data.
+2.  **Task Classifier ($g$)**: A network (e.g., MLP) that takes features from $f$ and predicts the main task label.
+3.  **Bias Predictor ($h$)**: A network that takes features from $f$ and tries to predict a known bias in the data.
+4.  **Adversarial Training**:
+      * $f$ and $g$ are trained to minimize the main task classification loss.
+      * $h$ is trained to minimize its bias prediction loss.
+      * $f$ is *also* trained to *maximize* $h$'s bias prediction loss (typically via a Gradient Reversal Layer - GRL).
+      * The `training.adversarial_lambda` in the config controls the strength of this adversarial component.
+
+The goal is for $f$ to learn features that are discriminative for the main task but contain minimal information about the unwanted bias.
 
 ## Citation
 
-If you use this code or the methods described in the paper, please consider citing the original work:
+If you use concepts from the original paper, please cite their work:
 
 ```bibtex
 @inproceedings{kim2019learning,
   title={Learning not to learn: Training deep neural networks with biased data},
   author={Kim, Byungju and Kim, Hyunwoo and Kim, Kyungsu and Kim, Sungjin and Kim, Junmo},
   booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={9004--9012},
+  pages={9012--9020},
   year={2019}
 }
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgements
-
-  * This work is an implementation based on the CVPR 2019 paper "Learning Not to Learn: Training Deep Neural Networks with Biased Data" by Kim et al.
+This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) file for details.

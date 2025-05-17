@@ -1,89 +1,153 @@
-# Makefile for "Learning Not to Learn" Project (Refactored)
+# Makefile for the Learning Not To Learn project
 
-PYTHON = python3
-REQS = requirements.txt
-OUTPUT_BASE_DIR = outputs # Base for all experiment outputs
-DATA_DIR = data # General data directory
-FETCH_SCRIPT = fetch_data.py
+# --- Variables ---
+# Python interpreter (uses the one in the current environment)
+PYTHON = python
+PIP = pip
 
-# --- Default Target ---
-.PHONY: help
+# Project directories
+SRC_DIR = src
+CONFIGS_DIR = configs
+SCRIPTS_DIR = scripts
+RESULTS_DIR = ./results
+NOTEBOOKS_DIR = notebooks
+DATA_DIR = ./data/colored_mnist # Default data directory
+
+# Default configuration file
+DEFAULT_CONFIG = $(CONFIGS_DIR)/colored_mnist_default.yaml
+DEFAULT_EXPERIMENT_NAME = colored_mnist_baseline # Must match experiment_name in DEFAULT_CONFIG
+DEFAULT_RESULTS_SUBDIR = $(RESULTS_DIR)/$(DEFAULT_EXPERIMENT_NAME)
+DEFAULT_CHECKPOINTS_DIR = $(DEFAULT_RESULTS_SUBDIR)/checkpoints
+DEFAULT_BEST_MODEL = $(DEFAULT_CHECKPOINTS_DIR)/best_model.pth
+DEFAULT_TENSORBOARD_LOGDIR = $(DEFAULT_RESULTS_SUBDIR)/tensorboard_logs
+
+# Default number of epochs for a quick test train, can be overridden
+DEFAULT_TRAIN_EPOCHS = 50
+QUICK_TRAIN_EPOCHS = 1
+
+
+# Phony targets (targets that don't represent actual files)
+.PHONY: help install setup download_data train quick_train eval tensorboard clean clean_results clean_data list_configs
+
+# --- Main Targets ---
+
 help:
-	@echo "Makefile for 'Learning Not to Learn' Project (Refactored)"
+	@echo "Makefile for Learning Not To Learn Project"
 	@echo ""
-	@echo "Usage:"
-	@echo "  make setup             Install dependencies from $(REQS)"
-	@echo "  make fetch_data        Download MNIST and setup directories for other datasets"
-	@echo "  make run_cmnist        Run Colored MNIST experiment (uses scripts/run_cmnist.sh)"
-	@echo "  make run_dogs_cats_tb1 Run Dogs and Cats TB1 experiment (uses scripts/run_dogs_cats_tb1.sh - you need to create this script)"
-	@echo "  make run_imdb_eb1_gen  Run IMDB Face EB1 Gender experiment (uses scripts/run_imdb_eb1_gender.sh - you need to create this script)"
-	@echo "  make lint              Run linting (requires flake8)"
-	@echo "  make clean             Remove Python cache files and ALL contents of $(OUTPUT_BASE_DIR)"
-	@echo "  make clean_pycache     Remove only Python cache files"
+	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Note: Specific experiment parameters are now managed within the .sh files in the 'scripts/' directory."
+	@echo "Available targets:"
+	@echo "  install          Install/update Python dependencies from requirements.txt."
+	@echo "  setup            Run install and download_data."
+	@echo "  download_data    Download and extract the Colored MNIST dataset."
+	@echo "  train            Run training with the default configuration ($(DEFAULT_CONFIG))."
+	@echo "                   Override epochs: make train EPOCHS=100"
+	@echo "                   Override config: make train CONFIG=configs/another_config.yaml"
+	@echo "                   Override device: make train DEVICE=cuda:0"
+	@echo "  quick_train      Run a short training (1 epoch) with default config for testing."
+	@echo "  eval             Evaluate the best model from the default training run."
+	@echo "                   Override checkpoint: make eval CHECKPOINT=path/to/model.pth"
+	@echo "                   Override config: make eval CONFIG=configs/another_config.yaml"
+	@echo "  tensorboard      Launch TensorBoard for the default experiment."
+	@echo "                   Override logdir: make tensorboard LOGDIR=./results/another_exp/tensorboard_logs"
+	@echo "  notebook         Start Jupyter Lab/Notebook (assumes jupyter is installed)."
+	@echo "  clean            Remove Python cache, build artifacts, and generated results."
+	@echo "  clean_results    Remove only the results directory."
+	@echo "  clean_data       Remove only the downloaded data directory ($(DATA_DIR))."
+	@echo "  list_configs     List available YAML configuration files."
+	@echo ""
 
-# --- Setup ---
-.PHONY: setup
-setup:
-	@echo "Installing dependencies from $(REQS)..."
-	$(PYTHON) -m pip install -r $(REQS)
-	@echo "Setup complete."
+# Default target (if user just types `make`)
+all: help
 
-# --- Data Fetching ---
-.PHONY: fetch_data
-fetch_data:
-	@echo "Running data fetching and setup script: $(FETCH_SCRIPT)..."
-	@if [ ! -f $(FETCH_SCRIPT) ]; then \
-		echo "Error: $(FETCH_SCRIPT) not found. Please ensure it's in the project root."; \
-		exit 1; \
+# --- Setup and Installation ---
+
+install: requirements.txt
+	@echo "Installing/updating Python dependencies..."
+	$(PIP) install -r requirements.txt
+	@echo "Verifying gdown installation (for dataset download)..."
+	$(PIP) show gdown > /dev/null || (echo "gdown not found, installing..." && $(PIP) install gdown)
+	@echo "Dependencies installed."
+
+download_data: $(SCRIPTS_DIR)/download_dataset.sh
+	@echo "Downloading and extracting dataset..."
+	@if [ ! -d "$(DATA_DIR)" ]; then \
+		echo "Data directory $(DATA_DIR) not found, creating..."; \
+		mkdir -p $(DATA_DIR); \
 	fi
-	$(PYTHON) $(FETCH_SCRIPT)
+	# Pass the target directory to the script
+	bash $(SCRIPTS_DIR)/download_dataset.sh $(DATA_DIR)
+	@echo "Dataset download script executed."
 
-# --- Training Targets (using shell scripts) ---
-.PHONY: run_cmnist
-run_cmnist:
-	@echo "Executing Colored MNIST experiment script..."
-	bash scripts/run_cmnist.sh
+setup: install download_data
+	@echo "Project setup complete."
 
-.PHONY: run_dogs_cats_tb1
-run_dogs_cats_tb1:
-	@echo "Executing Dogs and Cats TB1 experiment script..."
-	@if [ ! -f scripts/run_dogs_cats_tb1.sh ]; then \
-		echo "Error: scripts/run_dogs_cats_tb1.sh not found. Please create it."; \
-		exit 1; \
+# --- Training and Evaluation ---
+
+# Variables for overriding in train/eval targets
+EPOCHS ?= $(DEFAULT_TRAIN_EPOCHS)
+CONFIG ?= $(DEFAULT_CONFIG)
+DEVICE ?= auto # Default to 'auto', can be 'cpu', 'cuda', 'cuda:0', etc.
+CHECKPOINT ?= $(DEFAULT_BEST_MODEL)
+
+train:
+	@echo "Starting training with config: $(CONFIG), epochs: $(EPOCHS), device: $(DEVICE)..."
+	$(PYTHON) $(SRC_DIR)/main.py --config $(CONFIG) --mode train --num_epochs $(EPOCHS) --device $(DEVICE)
+
+quick_train:
+	@echo "Starting quick training (1 epoch) with config: $(CONFIG), device: $(DEVICE)..."
+	$(PYTHON) $(SRC_DIR)/main.py --config $(CONFIG) --mode train --num_epochs $(QUICK_TRAIN_EPOCHS) --device $(DEVICE)
+
+eval:
+	@echo "Evaluating model with config: $(CONFIG), checkpoint: $(CHECKPOINT), device: $(DEVICE)..."
+	@if [ ! -f "$(CHECKPOINT)" ] && [ "$(CHECKPOINT)" = "$(DEFAULT_BEST_MODEL)" ]; then \
+		echo "Warning: Default best model $(DEFAULT_BEST_MODEL) not found. Ensure training was run first or specify a CHECKPOINT."; \
 	fi
-	bash scripts/run_dogs_cats_tb1.sh
+	$(PYTHON) $(SRC_DIR)/main.py --config $(CONFIG) --mode evaluate --checkpoint_path $(CHECKPOINT) --device $(DEVICE)
 
-.PHONY: run_imdb_eb1_gen
-run_imdb_eb1_gen:
-	@echo "Executing IMDB Face EB1 Gender experiment script..."
-	@if [ ! -f scripts/run_imdb_eb1_gender.sh ]; then \
-		echo "Error: scripts/run_imdb_eb1_gender.sh not found. Please create it."; \
-		exit 1; \
-	fi
-	bash scripts/run_imdb_eb1_gender.sh
+# --- TensorBoard ---
+LOGDIR ?= $(DEFAULT_TENSORBOARD_LOGDIR)
 
-# --- Linting ---
-.PHONY: lint
-lint:
-	@echo "Running flake8 linter on root .py files..."
-	@command -v flake8 >/dev/null 2>&1 || { echo >&2 "flake8 not found. Please install it (pip install flake8)."; exit 1; }
-	flake8 *.py --count --select=E9,F63,F7,F82 --show-source --statistics
-	flake8 *.py --count --exit-zero --max-complexity=12 --max-line-length=120 --statistics
+tensorboard:
+	@echo "Launching TensorBoard with log directory: $(LOGDIR)..."
+	@echo "Open your browser to http://localhost:6006 (or the URL provided by TensorBoard)"
+	tensorboard --logdir $(LOGDIR)
+
+# --- Jupyter Notebook ---
+notebook:
+	@echo "Starting Jupyter Lab/Notebook..."
+	@echo "Ensure you have jupyter lab or notebook installed (e.g., pip install jupyterlab)."
+	# Tries jupyter lab first, then jupyter notebook
+	jupyter lab --notebook-dir=$(NOTEBOOKS_DIR) || jupyter notebook --notebook-dir=$(NOTEBOOKS_DIR)
+
 
 # --- Cleaning ---
-.PHONY: clean_pycache
-clean_pycache:
-	@echo "Cleaning Python cache files..."
-	find . -type f -name '*.py[co]' -delete
-	find . -type d -name '__pycache__' -exec rm -rf {} +
-	rm -rf .pytest_cache
-	@echo "Python cache cleanup complete."
 
-.PHONY: clean
-clean: clean_pycache
-	@echo "Cleaning ALL experiment outputs in $(OUTPUT_BASE_DIR)..."
-	rm -rf $(OUTPUT_BASE_DIR)/* # Careful: this removes all subdirectories and files in outputs
-	@echo "Experiment outputs cleanup complete."
+clean:
+	@echo "Cleaning up project..."
+	# Remove Python cache files
+	find . -type f -name "*.py[co]" -delete
+	find . -type d -name "__pycache__" -delete
+	# Remove build artifacts (if any)
+	rm -rf build/ dist/ *.egg-info/
+	# Remove results
+	$(MAKE) clean_results
+	@echo "Cleanup complete."
+
+clean_results:
+	@echo "Removing results directory: $(RESULTS_DIR)..."
+	rm -rf $(RESULTS_DIR)
+	@echo "Results directory removed."
+
+clean_data:
+	@echo "Removing data directory: $(DATA_DIR)..."
+	rm -rf $(DATA_DIR)
+	@echo "Data directory removed."
+
+# --- Utilities ---
+list_configs:
+	@echo "Available configuration files in $(CONFIGS_DIR):"
+	@ls -1 $(CONFIGS_DIR)/*.yaml | xargs -n 1 basename
+	@echo ""
+	@echo "Example usage: make train CONFIG=configs/your_chosen_config.yaml"
 

@@ -1,26 +1,15 @@
-# Deep learning framework
-torch>=2.0
-torchvision>=0.15
+# Core Deep Learning & Numerics
+torch>=1.8.0 # Or a more recent stable version
+torchvision>=0.9.0 # Corresponding torchvision version
+numpy>=1.19.0
 
-# Data manipulation
-numpy>=1.23
-pandas>=1.5 # For manifest creation by user, or if scripts process CSVs
+# Data Handling & Utilities
+scikit-learn # For metrics, data splitting if needed
+pandas # Optional: for handling tabular data or results
+Pillow # For image manipulation if not covered by torchvision
+PyYAML # For loading .yaml config files
 
-# Visualization
-matplotlib>=3.6
-seaborn>=0.12
-
-# Progress bar, logging, experiment tracking
-tqdm>=4.65
-tensorboard>=2.12
-
-# Image processing
-Pillow>=10.0
-
-# Testing (optional, for /tests)
-pytest>=7.0
-
-# For data fetching
-kaggle>=1.5 # For Kaggle API (Dogs vs Cats)
-requests>=2.25 # For downloading files from URLs (IMDB-WIKI raw)
-gdown>=4.6.0 # For downloading from Google Drive
+# Visualization & Progress
+matplotlib # For plotting
+tqdm # For progress bars
+tensorboard # For logging and visualizing training
