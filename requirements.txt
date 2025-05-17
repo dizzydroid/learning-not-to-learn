@@ -4,7 +4,7 @@ torchvision>=0.15
 
 # Data manipulation
 numpy>=1.23
-pandas>=1.5
+pandas>=1.5 # For manifest creation by user, or if scripts process CSVs
 
 # Visualization
 matplotlib>=3.6
@@ -14,18 +14,13 @@ seaborn>=0.12
 tqdm>=4.65
 tensorboard>=2.12
 
-# Experiment configs
-pyyaml>=6.0
-
-# Jupyter (optional)
-jupyterlab>=4.0
-
 # Image processing
 Pillow>=10.0
 
 # Testing (optional, for /tests)
 pytest>=7.0
 
-# Code style (optional)
-black>=24.1
-flake8>=7.0
+# For data fetching
+kaggle>=1.5 # For Kaggle API (Dogs vs Cats)
+requests>=2.25 # For downloading files from URLs (IMDB-WIKI raw)
+gdown>=4.6.0 # For downloading from Google Drive
