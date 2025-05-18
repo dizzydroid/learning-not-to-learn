@@ -1,0 +1,115 @@
+# --- Project and Experiment Setup ---
+project:
+  name: "LearningNotToLearn"
+  experiment_name: "colored_mnist_adagrad"
+  seed: 42
+  description: "AdaGrad experiment for Colored MNIST with LeNet-style feature extractor."
+
+# --- Data Configuration ---
+data:
+  name: "ColoredMNIST"
+  path: "./data/colored_mnist/"
+  bias_name: "color"
+  color_var: 0.030 # Make sure this matches your downloaded .npy file
+  img_channels: 3
+  img_size: 28
+  num_main_classes: 10
+  # num_bias_classes: 10 # Conceptual overall bias classes, not directly used by H's loss
+  train_batch_size: 128
+  val_batch_size: 256
+  test_batch_size: 256
+  num_workers: 4
+  pin_memory: true
+  create_val_loader: true # Added for clarity, used by main.py
+  val_split_ratio: 0.2 # Added for clarity, used by main.py
+
+# --- Model Architectures ---
+model:
+  feature_extractor_f:
+    name: "LeNet_F"
+    params:
+      input_channels: 3 # Concrete value (was ${data.img_channels})
+      feature_dim: 128 # Corrected from output_dim
+
+  task_classifier_g:
+    name: "MLP_Classifier_G"
+    params:
+      input_dim: 128 # Concrete value (was ${model.feature_extractor_f.params.output_dim})
+      hidden_dims: [64]
+      output_dim: 10 # Concrete value (was ${data.num_main_classes})
+
+  bias_predictor_h:
+    name: "ConvBiasPredictorH" # Updated to use the convolutional bias predictor
+    params:
+      input_dim: 128 # Concrete value (was ${model.feature_extractor_f.params.output_dim})
+      num_bias_quantization_bins: 8 # For 0-7 pixel value bins
+      # num_bias_channels is derived from data.img_channels (e.g., 3) by get_models
+      output_h: 14 # Target spatial H for bias map (matches data_loader)
+      output_w: 14 # Target spatial W for bias map (matches data_loader)
+      intermediate_channels: 64
+
+  adversarial_method: "gradient_reversal"
+
+# --- Training Configuration ---
+training:
+  device: "auto"
+  num_epochs: 100 # Can be overridden by --num_epochs
+
+  optimizer_fg:
+    type: "adagrad"
+    lr: 0.0005
+    weight_decay: 0.0001
+
+  optimizer_h:
+    type: "adagrad"
+    lr: 0.01
+
+  scheduler_fg:
+    type: "StepLR" # e.g., "StepLR", "CosineAnnealingLR", null for no scheduler
+    params:
+      step_size: 30
+      gamma: 0.1
+
+  scheduler_h:
+    type: null # No scheduler for bias predictor by default
+
+  main_task_loss_fn: "CrossEntropyLoss"
+  bias_prediction_loss_fn: "CrossEntropyLoss" # Will use ignore_index=255 in Trainer
+
+  adversarial_lambda: 1.0
+
+  gradient_reversal_layer:
+    grl_lambda_fixed: 1.0
+
+  clip_grad_norm: null
+
+  phases:
+    pretrain_fg_epochs: 0
+    pretrain_h_epochs: 0
+
+# --- Logging and Saving ---
+logging:
+  output_dir: "./results/"
+  use_experiment_subfolder: true
+  log_filename: "run.log" # Added for clarity
+  log_interval_batches: 50
+  checkpoint_interval_epochs: 10
+  save_best_model: true
+  best_model_metric: "val_accuracy_g"
+  best_model_metric_mode: "max"
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project_name: ""
+  wandb_entity_name: ""
+
+# --- Evaluation Configuration ---
+evaluation:
+  # val_batch_size and test_batch_size will use values from data section by default in main.py
+  # if not explicitly set here and if those keys are missing from data section.
+  # It's better to rely on data.val_batch_size and data.test_batch_size.
+  metrics:
+    - "accuracy"
+    - "f1_score_macro" # Note: You'd need to implement F1 score calculation if not standard
+    - "bias_accuracy"
+    - "unbiased_accuracy" # Note: Requires specific dataset split or annotation
+  checkpoint_path_for_eval: null

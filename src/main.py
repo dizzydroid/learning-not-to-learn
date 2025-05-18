@@ -45,6 +45,8 @@ def get_optimizer(optimizer_config: dict, model_parameters) -> optim.Optimizer:
     elif opt_type == 'adamw':
         betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
         return optim.AdamW(model_parameters, lr=lr, weight_decay=weight_decay, betas=betas)
+    elif opt_type == 'adagrad':
+        return optim.Adagrad(model_parameters, lr=lr, weight_decay=weight_decay)
     else:
         raise ValueError(f"Unsupported optimizer type: {opt_type}")
 
