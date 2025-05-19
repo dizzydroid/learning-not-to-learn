@@ -160,7 +160,7 @@ python src/main.py --config configs/your_config.yaml --mode train --checkpoint_p
 The `notebooks/` directory contains:
 
   * **`01_data_exploration_and_visualization.ipynb`**: Load and visualize the Colored MNIST dataset to understand its properties and biases.
-  * **`02_model_sanity_checks.ipynb`**: Instantiate and test individual model components ($f, g, h$) with dummy data to verify shapes and forward passes.
+  * **`02_model_sanity_checks.ipynb`**: Instantiate and test individual model components ($f$, g, $h$) with dummy data to verify shapes and forward passes.
   * **`03_results_analysis.ipynb`**: A template for loading metrics from TensorBoard, plotting learning curves, and performing other analyses on completed training runs.
 
 Start Jupyter Lab/Notebook using:
@@ -183,8 +183,6 @@ make notebook
 The goal is for $f$ to learn features that are discriminative for the main task but contain minimal information about the unwanted bias.
 
 ## Citation
-
-If you use concepts from the original paper, please cite their work:
 
 ```bibtex
 @inproceedings{kim2019learning,
